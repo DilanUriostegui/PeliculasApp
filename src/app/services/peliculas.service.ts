@@ -1,16 +1,58 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { CarteleraResponse } from '../interfaces/cartelera-response';
+import { Observable, of } from 'rxjs';
+import { CarteleraResponse, Movie } from '../interfaces/cartelera-response';
+import { map, tap } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PeliculasService {
 
+  private baseUrl: string = 'https://api.themoviedb.org/3';
+  private carteleraPage = 1;
+  public cargando: boolean = false;
+
   constructor( private http: HttpClient ) { }
 
-  getCartelera(): Observable<CarteleraResponse> {
-    return this.http.get<CarteleraResponse>('https://api.themoviedb.org/3/movie/now_playing?api_key=22cad0f9eadbc09ce9f641e2318d1d0c&language=es-ES&page=1');
+  get params(){
+    return {
+      api_key: '22cad0f9eadbc09ce9f641e2318d1d0c',
+      language: 'es-ES',
+      page: this.carteleraPage.toString()
+    };
   }
+
+  resetCarteleraPage(){
+    this.carteleraPage = 1;
+  }
+
+  getCartelera(): Observable<Movie[]> {
+
+    if(this.cargando){
+      return of([]);
+    }
+
+    this.cargando = true;
+
+    return this.http.get<CarteleraResponse>(`${ this.baseUrl }/movie/now_playing`,{
+      params: this.params
+    }).pipe(
+      map( (resp) => resp.results ),
+      tap( ()=> {
+        this.carteleraPage+=1;
+        this.cargando = false;
+      } )
+    );
+  }
+
+  buscarPeliculas( texto: string ):Observable<Movie[]>{
+    const params = {...this.params, page: '1', query: texto};
+    return this.http.get<CarteleraResponse>(`${this.baseUrl}/search/movie`,{
+      params
+    }).pipe(
+      map( resp => resp.results )
+    );
+  }
+
 }
